@@ -1,0 +1,29 @@
+
+ secbulk - Samsung USB bulk-transfer Linux kernel driver
+
+ Copyright (C) 2011 Michel Stempin <michel.stempin@wanadoo.fr>
+ Heavily based on existing GPL source code that can be found in
+ various Google Code projects and on several Chineese blog sites.
+
+ $Id: INSTALL 214 2011-03-09 23:36:14Z michel.stempin@wanadoo.fr $
+
+================================================================================
+
+This directory contains the Samsung USB bulk-transfer Linux kernel
+driver sources.
+
+In order to obtain a working driver for your Linux kernel, you will
+need to compile it. This requires to obtain you kernel sources
+(generally packaged as a `linux-devel' package) and a toolchain
+(binary utilities and a C compiler).
+
+The simplest way to compile this package is:
+
+  1. Type `make' to compile the driver as an external kernel module.
+
+  2. Type `sudo make install' to install the driver as root.
+
+  3. You can remove the driver binaries and object files from the
+     source code directory by typing `make clean'.
+
+  4. You can generate a redistributable package by typing `make dist'.

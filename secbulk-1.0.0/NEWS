@@ -1,0 +1,13 @@
+
+ secbulk - Samsung USB bulk-transfer Linux kernel driver
+ Copyright (C) 2011 Michel Stempin <michel.stempin@wanadoo.fr>
+ Heavily based on existing GPL source code that can be found in
+ various Google Code projects and on several Chineese blog sites.
+
+ $Id: NEWS 214 2011-03-09 23:36:14Z michel.stempin@wanadoo.fr $
+
+================================================================================
+
+Version 1.0.0
+
+  * Initial version for Samsung SNE-60 eReader device

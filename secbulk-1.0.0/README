@@ -1,0 +1,31 @@
+
+ secbulk - Samsung USB bulk-transfer Linux kernel driver
+
+ Copyright (C) 2011 Michel Stempin <michel.stempin@wanadoo.fr>
+ Heavily based on existing GPL source code that can be found in
+ various Google Code projects and on several Chineese blog sites.
+
+ $Id: README 214 2011-03-09 23:36:14Z michel.stempin@wanadoo.fr $
+
+================================================================================
+
+This directory contains the Samsung USB bulk-transfer Linux kernel
+driver.
+
+This driver is intended to download files to a Samsung electronic
+device in USB bulk transfer mode, for example a Samsung SNE60 eReader
+stopped in the U-Boot by pressing a key at startup on the serial
+console and where you entered the "dnw" command.
+
+See the file AUTHORS for a list of major contributors to the project.
+
+Please read the COPYRIGHT file for copyright and warranty information.
+Also, the file COPYING contains the full text of the GNU GPL.
+
+See the file INSTALL to find instructions on how to compile and
+install this driver.
+
+See the file NEWS for a list of major changes in the current release.
+
+Mail suggestions and bug reports for these programs to:
+michel.stempin@wanadoo.fr.
