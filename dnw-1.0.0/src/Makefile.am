@@ -18,7 +18,7 @@ localedir = $(datadir)/locale
 DEFS = -DLOCALEDIR=\"$(localedir)\" @DEFS@
 
 # Make sure the gettext.h include file is found.
-AM_CPPFLAGS = -I. -I$(top_srcdir) -I$(top_srcdir)/include -Wall
+AM_CPPFLAGS = -I. -I$(top_srcdir) -I$(top_srcdir)/include -I/opt/local/include/libusb-1.0 -Wall
 
 # Link time dependencies.
-LDADD = @LIBINTL@ -lusb
+LDADD = @LIBINTL@  -L/opt/local/lib -lusb-1.0

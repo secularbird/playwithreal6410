@@ -36,6 +36,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -43,7 +44,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef __LINUX__
 #include <usb.h>
+#elif defined __APPLE__
+#include <libusb.h>
+#endif
 #include <sys/stat.h>
 #include "config.h"
 #include "gettext.h"
@@ -248,34 +253,35 @@ parse_options(int argc, char *argv[])
 static struct usb_dev_handle *
 open_device(uint16_t vendor, uint16_t product, int configuration, int interface)
 {
-	struct usb_bus *busses, *bus;
+#ifdef __LINUX__
+  struct usb_bus *busses, *bus;
   struct usb_device *device;
   struct usb_dev_handle *hd;
 
-	usb_init();
-	usb_find_busses();
-	usb_find_devices();
+  usb_init();
+  usb_find_busses();
+  usb_find_devices();
 
   // Scan USB busses
-	busses = usb_get_busses();
-	for (bus = busses; bus; bus = bus->next) {
+  busses = usb_get_busses();
+  for (bus = busses; bus; bus = bus->next) {
 
     // Scan USB devices
-		for (device = bus->devices; device; device = device->next) {
+    for (device = bus->devices; device; device = device->next) {
 
       // Look for our device
-			if (device->descriptor.idVendor == vendor &&
+      if (device->descriptor.idVendor == vendor &&
           device->descriptor.idProduct == product) {
 
         // Device found
         if (!quiet) {
           printf(_("Target USB device found!\n"));
         }
-				hd = usb_open(device);
-				if (!hd) {
-					perror(_("Cannot open USB device"));
+        hd = usb_open(device);
+        if (!hd) {
+          perror(_("Cannot open USB device"));
           return NULL;
-				}
+        }
         if (usb_set_configuration(hd, configuration) < 0) {
           perror(_("Cannot set configuration for USB device"));
           usb_close(hd);
@@ -285,53 +291,55 @@ open_device(uint16_t vendor, uint16_t product, int configuration, int interface)
           perror(_("Cannot claim interface for USB device"));
           usb_close(hd);
           return NULL;
-				}
-				return hd;
-			}
-		}
-	}
+        }
+        return hd;
+      }
+    }
+  }
+#elif defined __APPLE__
+#endif
   fprintf(stderr, _("Target USB device not found!\n"));
-	return NULL;
+  return NULL;
 }
 
 // Read the source file to transfer
 unsigned char *read_file(char *filename, unsigned int *length)
 {
-	unsigned char *buffer = NULL;
-	struct stat fs;
-	int fd = -1, i;
-	u_int16_t checksum = 0;
+  unsigned char *buffer = NULL;
+  struct stat fs;
+  int fd = -1, i;
+  u_int16_t checksum = 0;
 
   // Open the file to transfer
-	fd = open(filename, O_RDONLY);
-	if (fd == -1) {
-		perror(_("Cannot open file"));
-		return NULL;
-	}
+  fd = open(filename, O_RDONLY);
+  if (fd == -1) {
+    perror(_("Cannot open file"));
+    return NULL;
+  }
 
   // Get the file size
-	if (fstat(fd, &fs) == -1) {
-		perror(_("Cannot get file size"));
-		goto error;
-	}
+  if (fstat(fd, &fs) == -1) {
+    perror(_("Cannot get file size"));
+    goto error;
+  }
 
   // Allocate buffer
-	buffer = (unsigned char *) malloc(fs.st_size + 10);
-	if (buffer == NULL) {
-		perror(_("Cannot allocate buffer memory"));
+  buffer = (unsigned char *) malloc(fs.st_size + 10);
+  if (buffer == NULL) {
+    perror(_("Cannot allocate buffer memory"));
     goto error;
-	}
+  }
 
   // Read the whole file into memory
   if (read(fd, buffer + 8, fs.st_size) != fs.st_size) {
-		perror(_("Cannot read file"));
-		goto error;
-	}
+    perror(_("Cannot read file"));
+    goto error;
+  }
 
   // Compute checksum
-	for (i = 8; i < fs.st_size + 8; i++) {
-		checksum += buffer[i];
-	}
+  for (i = 8; i < fs.st_size + 8; i++) {
+    checksum += buffer[i];
+  }
   if (!quiet) {
     printf(_("Filename : %s\n"), filename);
     printf(_("Filesize : %ld bytes\n"), fs.st_size);
@@ -339,24 +347,24 @@ unsigned char *read_file(char *filename, unsigned int *length)
   }
 
   // Transfer header: download address & size
-	*((u_int32_t *) buffer) = address;
-	*((u_int32_t *) buffer + 1) = fs.st_size + 10;
+  *((u_int32_t *) buffer) = address;
+  *((u_int32_t *) buffer + 1) = fs.st_size + 10;
 
   // Transfer footer: checksum
   *((u_int16_t *) (buffer + fs.st_size + 8)) = checksum;
 
-	*length = fs.st_size + 10;
-	return buffer;
+  *length = fs.st_size + 10;
+  return buffer;
 
 error:
-	if (fd != -1) {
+  if (fd != -1) {
     close(fd);
   }
-	if (buffer != NULL) {
+  if (buffer != NULL) {
     free(buffer);
   }
-	return NULL;
-	
+  return NULL;
+
 }
 
 //==============================================================================
@@ -367,11 +375,15 @@ error:
 int
 main(int argc, char *argv[])
 {
-	struct usb_dev_handle *device = NULL;
-	unsigned int length = 0;
-	unsigned char *buffer = NULL;
-	unsigned int remain = 0;
-	unsigned int to_write = 0;
+#ifdef __LINXU__
+  struct usb_dev_handle *device = NULL;
+#elif __APPLE__
+  struct libusb_device_handle *device = NULL;
+#endif
+  unsigned int length = 0;
+  unsigned char *buffer = NULL;
+  unsigned int remain = 0;
+  unsigned int to_write = 0;
 
   // Set up i18n
   setlocale(LC_ALL, "");
@@ -382,41 +394,44 @@ main(int argc, char *argv[])
   parse_options(argc, argv);
 
   // Open the USB device
-	device = open_device(vendor, product, configuration, interface);
-	if (!device) {
+  device = open_device(vendor, product, configuration, interface);
+  if (!device) {
     goto error;
-	}
+  }
 
   // Read the file into memory
-	buffer = read_file(filename, &length);
-	if (buffer == NULL) {
+  buffer = read_file(filename, &length);
+  if (buffer == NULL) {
     goto error;
   }
 
   // Actually transfer the data
-	remain = length;
+  remain = length;
   if (!quiet) {
     printf(_("Writing data...\n"));
   }
-	while (remain) {
-		to_write = (remain > block_size) ? block_size : remain; 
-		if (usb_bulk_write(device,
+  while (remain) {
+    to_write = (remain > block_size) ? block_size : remain;
+#ifdef __LINUX__
+    if (usb_bulk_write(device,
                        endpoint,
                        (char *) buffer + (length - remain),
                        to_write,
                        timeout) != to_write) {
-			perror(_("USB transfer failed"));
-			goto error;
-		}
-		remain -= to_write;
+      perror(_("USB transfer failed"));
+      goto error;
+    }
+#elif defined __APPLE__
+#endif
+    remain -= to_write;
     if (!quiet) {
       printf(_("\r%d%%\t %d bytes     "),
              (length - remain) * 100 / length,
              length - remain);
       fflush(stdout);
     }
-	}
-	if (!remain && !quiet) {
+  }
+  if (!remain && !quiet) {
     printf(_("Done!\n"));
   }
 
@@ -428,10 +443,13 @@ main(int argc, char *argv[])
     free(buffer);
   }
   if (device) {
+#ifdef __LINUX__
     usb_release_interface(device, 0);
     usb_close(device);
+#elif defined __APPLE__
+#endif
   }
-	exit(EXIT_SUCCESS);
+  exit(EXIT_SUCCESS);
 
  error:
   if (filename) {
@@ -441,8 +459,11 @@ main(int argc, char *argv[])
     free(buffer);
   }
   if (device) {
+#ifdef __LINUX__
     usb_release_interface(device, 0);
     usb_close(device);
+#elif defined __APPLE__
+#endif
   }
   exit(EXIT_FAILURE);
 }
