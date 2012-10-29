@@ -250,7 +250,11 @@ parse_options(int argc, char *argv[])
 }
 
 // Get a handle on the target USB device
+#ifdef __LINUX__
 static struct usb_dev_handle *
+#elif defined __APPLE__
+static struct libusb_device_handle *
+#endif
 open_device(uint16_t vendor, uint16_t product, int configuration, int interface)
 {
 #ifdef __LINUX__
@@ -297,6 +301,36 @@ open_device(uint16_t vendor, uint16_t product, int configuration, int interface)
     }
   }
 #elif defined __APPLE__
+  struct libusb_context *ctx = NULL;
+  struct libusb_device_handle *hd = NULL;
+
+  int ret = 0;
+  ret = libusb_init(&ctx);
+  if(ret != 0) {
+    printf("init libusb failed\n");
+    return NULL;
+  }
+
+  hd = libusb_open_device_with_vid_pid(ctx, vendor, product);
+
+  if (hd == NULL) {
+    perror("failed to open the USB device");
+    return NULL;
+  }
+  ret = libusb_set_configuration(hd, configuration);
+  if (ret < 0) {
+    printf("set configure failed: %s\n", libusb_error_name(ret));
+    libusb_close(hd);
+    return NULL;
+  }
+  ret = libusb_claim_interface(hd, interface);
+  if (ret < 0) {
+    printf("claim the interfaceA failed: %s\n", libusb_error_name(ret));
+    libusb_close(hd);
+    return NULL;
+  }
+  return hd;
+
 #endif
   fprintf(stderr, _("Target USB device not found!\n"));
   return NULL;
@@ -422,6 +456,16 @@ main(int argc, char *argv[])
       goto error;
     }
 #elif defined __APPLE__
+    int transfered = -1;
+    if (libusb_bulk_transfer(device,
+                       endpoint,
+                       (char *) buffer + (length - remain),
+                       to_write,
+                       &transfered,
+                             timeout)&&(transfered != to_write)) {
+      perror(_("USB transfer failed"));
+      goto error;
+    }
 #endif
     remain -= to_write;
     if (!quiet) {
@@ -444,9 +488,11 @@ main(int argc, char *argv[])
   }
   if (device) {
 #ifdef __LINUX__
-    usb_release_interface(device, 0);
+    usb_release_interface(device, interface);
     usb_close(device);
 #elif defined __APPLE__
+    libusb_release_interface(device, interface);
+    libusb_close(device);
 #endif
   }
   exit(EXIT_SUCCESS);
@@ -460,9 +506,11 @@ main(int argc, char *argv[])
   }
   if (device) {
 #ifdef __LINUX__
-    usb_release_interface(device, 0);
+    usb_release_interface(device, interface);
     usb_close(device);
 #elif defined __APPLE__
+    libusb_release_interface(device, interface);
+    libusb_close(device);
 #endif
   }
   exit(EXIT_FAILURE);
